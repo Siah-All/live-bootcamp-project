@@ -1,16 +1,77 @@
 services:
   app-service:
-    image: yoloslaw/app-service # specify name of image on Docker Hub
-    restart: "always" # automatically restart container when server crashes
-    environment: # set up environment variables
+    image: yoloslaw/app-service
+    restart: "always"
+    environment: 
       AUTH_SERVICE_IP: ${AUTH_SERVICE_IP} 
-    ports:
-      - "8000:8000" # expose port 8000 so that applications outside the container can connect to it 
-    depends_on: # only run app-service after auth-service has started
+    expose:
+      - "8000:8000"
+    depends_on: 
       auth-service:
         condition: service_started
+      reverse-proxy:
+        condition: service_started
+    labels:
+      traefik.enable: "true"
+
+      traefik.http.middlewares.secure-mw.redirectscheme.permanent: "false"
+      traefik.http.middlewares.secure-mv.redirectscheme.scheme: "https"
+
+      traefik.http.middlewares.app-mv.chain.middlewares: "secure-mv"
+
+      traefik.http.middlewares.strip-app-mv.stripprefix.prefixes: "/app"
+
+      traefik.http.routers.app-service.entrypoints: "web"
+      traefik.http.routers.app-service.rule: "PathPrefix(`/app`) || HeaderRegexp(`referer`, `(?i)^.*/app`)"
+      
+      traefik.http.services.app-service.loadbalancer.server.port: "8000"
+
+      traefik.http.routers.app-service-http.middlewares: "app-mv"
+      traefik.http.routers.app-service-secure.entrypoints: "websecure"
+      traefik.http.routers.app-service-secure.rule: "PathPrefix(`/app`) || HeaderRegexp(`referer`, `(?i)^.*/app`)"
+
+      traefik.http.routers.app-service-secure.tls: "true"
+      traefik.http.routers.app-service-secure.middlewares: "strip-app-mv"
+
   auth-service:
     image: yoloslaw/auth-service
-    restart: "always" # automatically restart container when server crashes
+    restart: "always"
+    expose:
+      - "3000:3000"
+    depends_on:
+      - reverse-proxy
+    labels:
+      traefik.enable: "true"
+
+      traefik.http.middlewares.secure-mw.redirectscheme.permanent: "false"
+      traefik.http.middlewares.secure-mv.redirectscheme.scheme: "https"
+
+      traefik.http.middlewares.auth-mv.chain.middlewares: "secure-mv"
+
+      traefik.http.middlewares.strip-auth-mv.stripprefix.prefixes: "/auth"
+
+      traefik.http.routers.auth-service.entrypoints: "web"
+      traefik.http.routers.auth-service.rule: "PathPrefix(`/auth`) || HeaderRegexp(`referer`, `(?i)^.*/auth`)"
+      
+      traefik.http.services.auth-service.loadbalancer.server.port: "3000"
+
+      traefik.http.routers.auth-service-http.middlewares: "auth-mv"
+      traefik.http.routers.auth-service-secure.entrypoints: "websecure"
+      traefik.http.routers.auth-service-secure.rule: "PathPrefix(`/auth`) || HeaderRegexp(`referer`, `(?i)^.*/auth`)"
+
+      traefik.http.routers.auth-service-secure.tls: "true"
+      traefik.http.routers.auth-service-secure.middlewares: "strip-auth-mv"
+  
+  reverse-proxy:
+    image: traefik:latest
+    restart: "always"
     ports:
-      - "3000:3000" # expose port 3000 so that applications outside the container can connect to it 
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - ./reverse-proxy-service/traefik.yml:/etc/traefik/traefik.yml
+      - ./reverse-proxy-service/acme.json:/letsencrypt/acme.json
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      traefik.enable: "false"
