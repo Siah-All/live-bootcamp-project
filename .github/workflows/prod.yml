@@ -97,6 +97,8 @@ jobs:
         password: ${{ secrets.DROPLET_PASSWORD }}
         script: |
           cd ~
+          touch ./reverse-proxy-service/acme.json
+          chmod 600 ./reverse-proxy-service/acme.json
           export AUTH_SERVICE_IP=${{ vars.DROPLET_IP }}
           docker compose down
           docker compose pull
