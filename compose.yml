@@ -3,7 +3,7 @@ services:
     image: yoloslaw/app-service:latest
     restart: "always"
     environment: 
-      AUTH_SERVICE_HOST_NAME: ${AUTH_SERVICE_HOST_NAME}
+      AUTH_SERVICE_HOST: ${AUTH_SERVICE_HOST}
     expose:
       - "8000:8000"
     depends_on: 

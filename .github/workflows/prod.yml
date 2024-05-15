@@ -99,7 +99,7 @@ jobs:
           cd ~
           touch ./reverse-proxy-service/acme.json
           chmod 600 ./reverse-proxy-service/acme.json
-          export AUTH_SERVICE_HOST_NAME='${{ vars.DROPLET_IP }}/auth'
+          export AUTH_SERVICE_HOST='${{ vars.DROPLET_IP }}/auth'
           docker compose down
           docker compose pull
           docker compose up -d
